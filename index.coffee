@@ -93,7 +93,10 @@ module.exports =
 		data = JSON.stringify
 			d:	date
 			b:	body
+		self = this
 		return @_set "m:#{group}:#{id}", data
+		.then () ->
+			self.publish 'm', group
 
 
 
