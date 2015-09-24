@@ -1,0 +1,32 @@
+{
+	"name": "shout-orm",
+	"description": "The ORM layer for shout.",
+	"license": "MIT",
+	"author": {
+		"name": "Jannis R",
+		"email": "mail@jannisr.de",
+		"url": "http://jannisr.de"
+	},
+	"homepage": "https://github.com/derhuerst/shout-orm",
+	"repository": "git://github.com/derhuerst/shout-orm.git",
+	"bugs": "https://github.com/derhuerst/shout-orm/issues",
+	"version": "0.1.0",
+	"main": "./index.coffee",
+	"keywords": [
+		"shout",
+		"orm",
+		"redis",
+		"coffeescript",
+		"javascript"
+	],
+	"dependencies": {
+		"coffee-script":			"^1.10.0",
+		"async":					"^1.4.2",
+		"hiredis":					"^0.4.1",
+		"redis":					"^1.0.0"
+	},
+	"directories": {
+		"src":		"./",
+		"lib":		"./"
+	}
+}
