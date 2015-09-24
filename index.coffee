@@ -17,6 +17,7 @@ module.exports =
 	_get:		null
 	_set:		null
 	_keys:		null
+	_exists:	null
 
 
 
@@ -25,12 +26,20 @@ module.exports =
 
 		@redis = redis.createClient @port, @host
 
+		@publish = redis.publish
+		@subscribe = redis.subscribe
+
 		@_get = Promise.promisify redis.get
 		@_set = Promise.promisify redis.set
 		@_keys = Promise.promisify redis.keys
 		@_exists = Promise.promisify redis.exists
 
 		return this
+
+
+
+	publish:	null
+	subscribe:	null
 
 
 
@@ -67,7 +76,7 @@ module.exports =
 		.then (exists) -> !!exists
 
 	getMessagesOfGroup: (group) ->
-		# todo: support streams
+		# todo: find a way to stream keys for performance
 		return new Promise (resolve, reject) ->
 			results = []
 			@_keys "m:#{group}:*"
@@ -101,7 +110,7 @@ module.exports =
 		.then (exists) -> !!exists
 
 	getUsersOfGroup: (group) ->
-		# todo: support streams
+		# todo: find a way to stream keys for performance
 		return new Promise (resolve, reject) ->
 			results = []
 			@_keys "u:#{group}:*"
