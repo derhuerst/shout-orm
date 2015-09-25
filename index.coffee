@@ -9,7 +9,7 @@ module.exports =
 
 
 
-	port:		6389
+	port:		6379
 	host:		'localhost'
 
 	redis:		null
@@ -29,10 +29,10 @@ module.exports =
 		@publish = redis.publish
 		@subscribe = redis.subscribe
 
-		@_get = Promise.promisify redis.get
-		@_set = Promise.promisify redis.set
-		@_keys = Promise.promisify redis.keys
-		@_exists = Promise.promisify redis.exists
+		@_get = Promise.promisify @redis.get, @redis
+		@_set = Promise.promisify @redis.set, @redis
+		@_keys = Promise.promisify @redis.keys, @redis
+		@_exists = Promise.promisify @redis.exists, @redis
 
 		return this
 
@@ -47,9 +47,10 @@ module.exports =
 		return @_get "g:#{name}"
 		.then (data) ->
 			data = JSON.parse data
-			return
+			return {
 				key:	data.k
 				locked:	data.l
+			}
 
 	groupExists: (name) ->
 		return @_exists "g:#{name}"
@@ -67,9 +68,10 @@ module.exports =
 		return @_get "m:#{group}:#{id}"
 		.then (data) ->
 			data = JSON.parse data
-			return
+			return {
 				date:	data.d
 				body:	data.b
+			}
 
 	messageExists: (group, id) ->
 		return @_exists "m:#{group}:#{id}"
@@ -104,9 +106,10 @@ module.exports =
 		return @_get "u:#{group}:#{id}"
 		.then (data) ->
 			data = JSON.parse data
-			return
+			return {
 				system:	data.s
 				token:	data.t
+			}
 
 	userExists: (group, id) ->
 		return @_exists "u:#{group}:#{id}"
