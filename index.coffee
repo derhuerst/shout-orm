@@ -46,6 +46,7 @@ module.exports =
 	getGroup: (name) ->
 		return @_get "g:#{name}"
 		.then (data) ->
+			return new Error "Group `#{name}` doesn't exist."
 			data = JSON.parse data
 			return {
 				key:	data.k
@@ -67,6 +68,7 @@ module.exports =
 	getMessage: (group, id) ->
 		return @_get "m:#{group}:#{id}"
 		.then (data) ->
+			return new Error "Message `#{id}` doesn't exist in group `#{group}`."
 			data = JSON.parse data
 			return {
 				date:	data.d
@@ -105,6 +107,7 @@ module.exports =
 	getUser: (group, id) ->
 		return @_get "u:#{group}:#{id}"
 		.then (data) ->
+			return new Error "User `#{id}` doesn't exist in group `#{group}`."
 			data = JSON.parse data
 			return {
 				system:	data.s
