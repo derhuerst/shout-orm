@@ -1,5 +1,7 @@
 Promise =		require 'bluebird'
 redis =			require 'redis'
+boom =			require 'boom'
+async =			require 'async'
 
 
 
@@ -46,7 +48,8 @@ module.exports =
 	getGroup: (name) ->
 		return @_get "g:#{name}"
 		.then (data) ->
-			return new Error "Group `#{name}` doesn't exist."
+			if not data
+				throw boom.notFound "Group `#{name}` doesn't exist."
 			data = JSON.parse data
 			return {
 				key:	data.k
@@ -68,7 +71,8 @@ module.exports =
 	getMessage: (group, id) ->
 		return @_get "m:#{group}:#{id}"
 		.then (data) ->
-			return new Error "Message `#{id}` doesn't exist in group `#{group}`."
+			if not data
+				throw boom.notFound "Message `#{id}` doesn't exist in group `#{group}`."
 			data = JSON.parse data
 			return {
 				date:	data.d
@@ -80,14 +84,15 @@ module.exports =
 		.then (exists) -> !!exists
 
 	getMessagesOfGroup: (group) ->
+		self = this
 		# todo: find a way to stream keys for performance
 		return new Promise (resolve, reject) ->
 			results = []
-			@_keys "m:#{group}:*"
+			self._keys "m:#{group}:*"
 			.then (ids) ->
 				async.eachLimit ids, 50, ((id, cb) ->
 					# todo: use [redis transactions](http://redis.io/topics/transactions) or at least [redis pipelining](http://redis.io/topics/pipelining)
-					@getMessage group, id
+					self.getMessage group, id
 					.then (message) ->
 						results.push message
 				), () ->
@@ -107,7 +112,8 @@ module.exports =
 	getUser: (group, id) ->
 		return @_get "u:#{group}:#{id}"
 		.then (data) ->
-			return new Error "User `#{id}` doesn't exist in group `#{group}`."
+			if not data
+				throw boom.notFound "User `#{id}` doesn't exist in group `#{group}`."
 			data = JSON.parse data
 			return {
 				system:	data.s
@@ -119,14 +125,15 @@ module.exports =
 		.then (exists) -> !!exists
 
 	getUsersOfGroup: (group) ->
+		self = this
 		# todo: find a way to stream keys for performance
 		return new Promise (resolve, reject) ->
 			results = []
-			@_keys "u:#{group}:*"
+			self._keys "u:#{group}:*"
 			.then (ids) ->
 				async.eachLimit ids, 50, ((id, cb) ->
 					# todo: use [redis transactions](http://redis.io/topics/transactions) or at least [redis pipelining](http://redis.io/topics/pipelining)
-					@getUser group, id
+					self.getUser group, id
 					.then (user) ->
 						results.push user
 				), () ->
