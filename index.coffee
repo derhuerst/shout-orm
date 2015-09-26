@@ -60,10 +60,10 @@ module.exports =
 		return @_exists "g:#{name}"
 		.then (exists) -> !!exists
 
-	setGroup: (name, key, locked) ->
+	setGroup: (name, data) ->
 		data = JSON.stringify
-			k:	key
-			l:	locked
+			k:	data.key
+			l:	data.locked
 		return @_set "g:#{name}", data
 
 
@@ -92,9 +92,11 @@ module.exports =
 			.then (ids) ->
 				async.eachLimit ids, 50, ((id, cb) ->
 					# todo: use [redis transactions](http://redis.io/topics/transactions) or at least [redis pipelining](http://redis.io/topics/pipelining)
+					id = id.split(':')[2]
 					self.getMessage group, id
 					.then (message) ->
 						results.push message
+						cb()
 				), () ->
 					resolve results
 
@@ -105,7 +107,7 @@ module.exports =
 		self = this
 		return @_set "m:#{group}:#{id}", data
 		.then () ->
-			self.publish 'm', group
+			self.redis.publish 'm', group
 
 
 
