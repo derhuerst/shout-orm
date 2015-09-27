@@ -18,8 +18,10 @@ module.exports =
 
 	_get:		null
 	_set:		null
+	_del:		null
 	_keys:		null
 	_exists:	null
+	_expire:	null
 
 
 
@@ -28,121 +30,190 @@ module.exports =
 
 		@redis = redis.createClient @port, @host
 
-		@publish = redis.publish
-		@subscribe = redis.subscribe
-
 		@_get = Promise.promisify @redis.get, @redis
 		@_set = Promise.promisify @redis.set, @redis
+		@_del = Promise.promisify @redis.del, @redis
 		@_keys = Promise.promisify @redis.keys, @redis
 		@_exists = Promise.promisify @redis.exists, @redis
+		@_expire = Promise.promisify @redis.expire, @redis
+
+		@groups._orm = this
+		@users._orm = this
+		@registrations._orm = this
+		@messages._orm = this
+		@subscribers._orm = this
 
 		return this
 
 
 
-	publish:	null
-	subscribe:	null
+	# key prefix is `g`
+	groups:
+
+		has: (name) ->
+			return @_orm._exists "g:#{name}"
+			.then (exists) -> !!exists
+
+		add: (name, key, locked = false) ->
+			return @_orm._set "g:#{name}", JSON.stringify
+				k:	key
+				l:	locked
+
+		get: (name) ->
+			return @_orm._get "g:#{name}"
+			.then (data) ->
+				if not data then throw boom.notFound "Group `#{name}` doesn't exist."
+				data = JSON.parse data
+				return {
+					key:	data.k
+					locked:	data.l
+				}
+
+		rm: (name) -> @_orm._del "g:#{name}"
 
 
 
-	getGroup: (name) ->
-		return @_get "g:#{name}"
-		.then (data) ->
-			if not data
-				throw boom.notFound "Group `#{name}` doesn't exist."
-			data = JSON.parse data
-			return {
-				key:	data.k
-				locked:	data.l
-			}
+	# key prefix is `u`
+	users:
 
-	groupExists: (name) ->
-		return @_exists "g:#{name}"
-		.then (exists) -> !!exists
+		has: (id) ->
+			return @_orm._exists "u:#{id}"
+			.then (exists) -> !!exists
 
-	setGroup: (name, data) ->
-		data = JSON.stringify
-			k:	data.key
-			l:	data.locked
-		return @_set "g:#{name}", data
+		add: (id, system, token) ->
+			return @_orm._set "u:#{id}", JSON.stringify
+				s:	system   # todo: use abbreviations
+				t:	token
 
+		get: (id) ->
+			return @_orm._get "u:#{id}"
+			.then (data) ->
+				if not data then throw boom.notFound "User `#{id}` doesn't exist."
+				data = JSON.parse data
+				return {
+					system:	data.s
+					token:	data.t
+				}
 
-
-	getMessage: (group, id) ->
-		return @_get "m:#{group}:#{id}"
-		.then (data) ->
-			if not data
-				throw boom.notFound "Message `#{id}` doesn't exist in group `#{group}`."
-			data = JSON.parse data
-			return {
-				date:	data.d
-				body:	data.b
-			}
-
-	messageExists: (group, id) ->
-		return @_exists "m:#{group}:#{id}"
-		.then (exists) -> !!exists
-
-	getMessagesOfGroup: (group) ->
-		self = this
-		# todo: find a way to stream keys for performance
-		return new Promise (resolve, reject) ->
-			results = []
-			self._keys "m:#{group}:*"
-			.then (ids) ->
-				async.eachLimit ids, 50, ((id, cb) ->
-					# todo: use [redis transactions](http://redis.io/topics/transactions) or at least [redis pipelining](http://redis.io/topics/pipelining)
-					id = id.split(':')[2]
-					self.getMessage group, id
-					.then (message) ->
-						results.push message
-						cb()
-				), () ->
-					resolve results
-
-	setMessage: (group, id, date, body) ->
-		data = JSON.stringify
-			d:	date
-			b:	body
-		self = this
-		return @_set "m:#{group}:#{id}", data
-		.then () ->
-			self.redis.publish 'm', group
+		rm: (id) -> @_orm._del "u:#{id}"
 
 
 
-	getUser: (group, id) ->
-		return @_get "u:#{group}:#{id}"
-		.then (data) ->
-			if not data
-				throw boom.notFound "User `#{id}` doesn't exist in group `#{group}`."
-			data = JSON.parse data
-			return {
-				system:	data.s
-				token:	data.t
-			}
+	# users pending for activation
+	# key prefix is `r`
+	registrations:
 
-	userExists: (group, id) ->
-		return @_exists "u:#{group}:#{id}"
-		.then (exists) -> !!exists
+		has: (id) ->
+			return @_orm._exists "r:#{id}"
+			.then (exists) -> !!exists
 
-	getUsersOfGroup: (group) ->
-		self = this
-		# todo: find a way to stream keys for performance
-		return new Promise (resolve, reject) ->
-			results = []
-			self._keys "u:#{group}:*"
-			.then (ids) ->
-				async.eachLimit ids, 50, ((id, cb) ->
-					# todo: use [redis transactions](http://redis.io/topics/transactions) or at least [redis pipelining](http://redis.io/topics/pipelining)
-					self.getUser group, id
-					.then (user) ->
-						results.push user
-				), () ->
-					resolve results
+		add: (id, token, ttl = 300) ->
+			self = this
+			return @_orm._set "r:#{id}", token
+			.then () ->
+				return self._orm._expire "r:#{id}", 200
 
-	setUser: (group, id, system, token) ->
-		data = JSON.stringify
-			s:	system
-			t:	token
-		return @_set "u:#{group}:#{id}", data
+		get: (id) ->
+			return @_orm._get "r:#{id}"
+			.then (data) ->
+				if not data then throw boom.notFound "Registration `#{id}` doesn't exist."
+				return data
+
+		activate: (id, system, token) ->
+			self = this
+			return @get id
+			.then (storedToken) ->
+				if token isnt storedToken then throw boom.unauthorized "Wrong activation token."
+				return self._orm.users.add id, system, token
+			.then () ->
+				return self._orm._del "r:#{id}"
+
+		rm: (id) -> @_orm._del "r:#{id}"
+
+
+
+	# messages in a group
+	# key prefix is `m:{group}`
+	messages:
+
+		has: (group, id) ->
+			return @_orm._exists "m:#{group}:#{id}"
+			.then (exists) -> !!exists
+
+		get: (group, id) ->
+			return @_orm._get "m:#{group}:#{id}"
+			.then (data) ->
+				if not data then throw boom.notFound "Message `#{id}` doesn't exist in group `#{group}`."
+				data = JSON.parse data
+				return {
+					date:	data.d
+					body:	data.b
+				}
+
+		add: (groupId, id, body, date = Date.now()) ->
+			self = this
+			return @_orm.groups.get groupId
+			.then (group) ->
+				if group.locked then throw new Error "The group `#{group}` is locked."
+				self._orm._set "m:#{groupId}:#{id}", JSON.stringify
+					d:	0 + date
+					b:	body
+			.then () -> self._orm.redis.publish 'm', groupId
+
+		all: (group) ->
+			self = this
+			# todo: find a way to stream keys for performance
+			return new Promise (resolve, reject) ->
+				results = []
+				self._orm._keys "m:#{group}:*"
+				.then (ids) ->
+					async.eachLimit ids, 50, ((id, cb) ->
+						# todo: use [redis transactions](http://redis.io/topics/transactions) or at least [redis pipelining](http://redis.io/topics/pipelining)
+						self.get group, id.split(':')[2]
+						.then (message) ->
+							results.push message
+							cb()
+					), () ->
+						resolve results
+
+		rm: (group, id) -> @_orm._del "m:#{group}:#{id}"
+
+
+
+	# users subscribed to a group
+	# key prefix is `s:{group}`
+	subscribers:
+
+		has: (group, id) ->
+			return @_orm._exists "s:#{group}:#{id}"
+			.then (exists) -> !!exists
+
+		get: (group, id) ->
+			return @_orm._get "s:#{group}:#{id}"
+			.then (data) ->
+				if not data then throw boom.notFound "User `#{id}` did not subscribe to group `#{group}`."
+				return parseInt data
+
+		add: (groupId, id, date = Date.now()) ->
+			self = this
+			return @_orm.groups.get groupId
+			.then (group) -> self._orm._set "s:#{groupId}:#{id}", date + ''
+			.then () -> self._orm.redis.publish 'm', groupId
+
+		all: (group) ->
+			self = this
+			# todo: find a way to stream keys for performance
+			return new Promise (resolve, reject) ->
+				results = []
+				self._orm._keys "s:#{group}:*"
+				.then (ids) ->
+					async.eachLimit ids, 50, ((id, cb) ->
+						# todo: use [redis transactions](http://redis.io/topics/transactions) or at least [redis pipelining](http://redis.io/topics/pipelining)
+						self.get group, id.split(':')[2]
+						.then (user) ->
+							results.push user
+							cb()
+					), () ->
+						resolve results
+
+		rm: (group, id) -> @_orm._del "s:#{group}:#{id}"
