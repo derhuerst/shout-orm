@@ -149,7 +149,8 @@ describe 'messages', () ->
 		.then () -> orm.messages.add 'one', 'two', testMessage1.body, testMessage1.date
 		.then () -> orm.messages.add 'one', 'three', testMessage2.body, testMessage2.date
 		.then () -> orm.messages.all 'one'
-		.then (messages) -> assert.deepEqual messages, [testMessage1, testMessage2]
+		.then (messages) ->
+			assert.deepEqual messages, [ testMessage1, testMessage2 ]
 		.then () -> orm.messages.rm 'one', 'two'
 		.then () -> orm.messages.rm 'one', 'three'
 		.then () -> orm.groups.rm 'one'
@@ -179,7 +180,10 @@ describe 'subscribers', () ->
 		.then () -> orm.subscribers.add 'one', 'two', testSubscriber1
 		.then () -> orm.subscribers.add 'one', 'three', testSubscriber2
 		.then () -> orm.subscribers.all 'one'
-		.then (subscribers) -> assert.deepEqual subscribers, [testSubscriber1, testSubscriber2]
+		.then (all) ->
+			assert.strictEqual all.length, 2
+			assert all.indexOf(testSubscriber1) >= 0, '`testSubscriber1` exists'
+			assert all.indexOf(testSubscriber2) >= 0, '`testSubscriber2` exists'
 		.then () -> orm.subscribers.rm 'one', 'two'
 		.then () -> orm.subscribers.rm 'one', 'three'
 		.then () -> orm.groups.rm 'one'
