@@ -54,6 +54,7 @@ module.exports =
 			return @_orm._exists "g:#{name}"
 			.then (exists) -> !!exists
 
+		# todo: rename to `set`?
 		add: (name, key, locked = false) ->
 			return @_orm._set "g:#{name}", JSON.stringify
 				k:	key
@@ -68,6 +69,13 @@ module.exports =
 					key:	data.k
 					locked:	data.l
 				}
+
+		lock: (name) ->
+			self = this
+			return @get name
+			.then (group) ->
+				if group.locked then return   # already locked
+				else return self.add name, group.key, true
 
 		rm: (name) -> @_orm._del "g:#{name}"
 

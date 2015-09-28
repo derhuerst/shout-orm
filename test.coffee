@@ -33,6 +33,14 @@ describe 'groups', () ->
 			assert.strictEqual exists, true
 			done()
 
+	it 'should correctly lock a group', (done) ->
+		orm.groups.add 'one', testGroup.key, false
+		.then () -> orm.groups.lock 'one'
+		.then () -> orm.groups.get 'one'
+		.then (group) -> assert.strictEqual group.locked, true
+		.then () -> orm.groups.rm 'one'
+		.then () -> done()
+
 	it 'should correctly remove a group', (done) ->
 		orm.groups.rm 'one'
 		.then () -> orm.groups.has 'one'
