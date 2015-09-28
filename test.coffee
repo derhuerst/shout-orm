@@ -21,17 +21,17 @@ describe 'groups', () ->
 
 	it 'should `add` & `get` data correctly', (done) ->
 		orm.groups.add 'one', testGroup.key, testGroup.locked
-		.then () ->
-			orm.groups.get 'one'
-			.then (group) ->
-				assert.deepEqual group, testGroup
-				done()
+		.then () -> orm.groups.get 'one'
+		.then (group) -> assert.deepEqual group, testGroup
+		.then () -> orm.groups.rm 'one'
+		.then () -> done()
 
 	it 'should correctly check if a group exists', (done) ->
+		orm.groups.add 'one', testGroup.key, testGroup.locked
 		orm.groups.has 'one'
-		.then (exists) ->
-			assert.strictEqual exists, true
-			done()
+		.then (exists) -> assert.strictEqual exists, true
+		.then () -> orm.groups.rm 'one'
+		.then () -> done()
 
 	it 'should correctly lock a group', (done) ->
 		orm.groups.add 'one', testGroup.key, false
@@ -42,11 +42,11 @@ describe 'groups', () ->
 		.then () -> done()
 
 	it 'should correctly remove a group', (done) ->
-		orm.groups.rm 'one'
+		orm.groups.add 'one', testGroup.key, false
+		.then () -> orm.groups.rm 'one'
 		.then () -> orm.groups.has 'one'
-		.then (exists) ->
-			assert.strictEqual exists, false
-			done()
+		.then (exists) -> assert.strictEqual exists, false
+		.then () -> done()
 
 
 
@@ -58,24 +58,24 @@ describe 'users', () ->
 
 	it 'should `add` & `get` data correctly', (done) ->
 		orm.users.add 'one', testUser.system, testUser.token
-		.then () ->
-			orm.users.get 'one'
-			.then (user) ->
-				assert.deepEqual user, testUser
-				done()
+		.then () -> orm.users.get 'one'
+		.then (user) -> assert.deepEqual user, testUser
+		.then () -> orm.users.rm 'one'
+		.then () -> done()
 
 	it 'should correctly check if a user exists', (done) ->
+		orm.users.add 'one', testUser.system, testUser.token
 		orm.users.has 'one'
-		.then (exists) ->
-			assert.strictEqual exists, true
-			done()
+		.then (exists) -> assert.strictEqual exists, true
+		.then () -> orm.users.rm 'one'
+		.then () -> done()
 
 	it 'should correctly remove a user', (done) ->
-		orm.users.rm 'one'
+		orm.users.add 'one', testUser.system, testUser.token
+		.then () -> orm.users.rm 'one'
 		.then () -> orm.users.has 'one'
-		.then (exists) ->
-			assert.strictEqual exists, false
-			done()
+		.then (exists) -> assert.strictEqual exists, false
+		.then () -> done()
 
 
 
@@ -89,27 +89,27 @@ describe 'registrations', () ->
 	it 'should `add` & `get` data correctly', (done) ->
 		orm.registrations.add 'one', testRegistration
 		.then () -> orm.registrations.get 'one'
-		.then (registration) ->
-			assert.deepEqual registration, testRegistration
-			done()
+		.then (registration) -> assert.deepEqual registration, testRegistration
+		.then () -> orm.registrations.rm 'one'
+		.then () -> done()
 
 	it 'should correctly check if a registration exists', (done) ->
+		orm.registrations.add 'one', testRegistration
 		orm.registrations.has 'one'
-		.then (exists) ->
-			assert.strictEqual exists, true
-			done()
+		.then (exists) -> assert.strictEqual exists, true
+		.then () -> orm.registrations.rm 'one'
+		.then () -> done()
 
 	it 'should correctly remove a registration', (done) ->
-		orm.registrations.rm 'one'
+		orm.registrations.add 'one', testRegistration
+		.then () -> orm.registrations.rm 'one'
 		.then () -> orm.registrations.has 'one'
-		.then (exists) ->
-			assert.strictEqual exists, false
-			done()
+		.then (exists) -> assert.strictEqual exists, false
+		.then () -> done()
 
 	it 'should correctly activate a registration', (done) ->
 		orm.registrations.add 'two', testRegistration
-		.then () ->
-			orm.registrations.activate 'two', testUser.system, testUser.token
+		.then () -> orm.registrations.activate 'two', testUser.system, testUser.token
 		.then () -> orm.users.get 'two'
 		.then (user) -> assert.deepEqual user, testUser
 		.then () -> orm.users.rm 'two'
