@@ -2,6 +2,7 @@ Promise =		require 'bluebird'
 redis =			require 'redis'
 boom =			require 'boom'
 async =			require 'async'
+shortid =		require 'shortid'
 
 
 
@@ -117,9 +118,11 @@ module.exports =
 
 		add: (id, token, ttl = 300) ->
 			self = this
-			return @_orm._set "r:#{id}", token
-			.then () ->
-				return self._orm._expire "r:#{id}", 200
+			code = shortid.generate()   # activation code
+			return @_orm._set "r:#{id}", code
+			.then () -> self._orm._expire "r:#{id}", 200
+			.then () -> self._orm.redis.publish 'r', "#{token}:#{code}"
+			.then () -> return code
 
 		get: (id) ->
 			return @_orm._get "r:#{id}"
@@ -127,14 +130,13 @@ module.exports =
 				if not data then throw boom.notFound "Registration `#{id}` doesn't exist."
 				return data
 
-		activate: (id, system, token) ->
+		activate: (id, code, system, token) ->
 			self = this
 			return @get id
-			.then (storedToken) ->
-				if token isnt storedToken then throw boom.unauthorized "Wrong activation token."
+			.then (storedCode) ->
+				if code isnt storedCode then throw boom.unauthorized "Wrong activation code."
 				return self._orm.users.add id, system, token
-			.then () ->
-				return self._orm._del "r:#{id}"
+			.then () -> self._orm._del "r:#{id}"
 
 		rm: (id) -> @_orm._del "r:#{id}"
 
@@ -166,7 +168,7 @@ module.exports =
 				self._orm._set "m:#{groupId}:#{id}", JSON.stringify
 					d:	0 + date
 					b:	body
-			.then () -> self._orm.redis.publish 'm', groupId
+			.then () -> self._orm.redis.publish 'm', "#{groupId}:#{id}"
 
 		all: (group) ->
 			self = this
