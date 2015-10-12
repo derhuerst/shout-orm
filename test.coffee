@@ -2,7 +2,7 @@ mocha =			require 'mocha'
 assert =		require 'assert'
 shortid =		require 'shortid'
 
-orm =			require './index'
+orm =			require './src/index'
 
 
 
@@ -81,37 +81,41 @@ describe 'users', () ->
 
 describe 'registrations', () ->
 
-	testRegistration = 'test token'
 	testUser =
 		token:	'test token'
 		system:	'ios'
 
 	it 'should `add` & `get` data correctly', (done) ->
-		orm.registrations.add 'one', testRegistration
-		.then () -> orm.registrations.get 'one'
-		.then (registration) -> assert.deepEqual registration, testRegistration
+		orm.registrations.add 'one', testUser.token
+		.then (code) ->
+			orm.registrations.get 'one'
+			.then (storedCode) ->
+				assert.deepEqual code, storedCode
 		.then () -> orm.registrations.rm 'one'
 		.then () -> done()
 
 	it 'should correctly check if a registration exists', (done) ->
-		orm.registrations.add 'one', testRegistration
+		orm.registrations.add 'one', testUser.token
 		orm.registrations.has 'one'
 		.then (exists) -> assert.strictEqual exists, true
 		.then () -> orm.registrations.rm 'one'
 		.then () -> done()
 
 	it 'should correctly remove a registration', (done) ->
-		orm.registrations.add 'one', testRegistration
+		orm.registrations.add 'one', testUser.token
 		.then () -> orm.registrations.rm 'one'
 		.then () -> orm.registrations.has 'one'
 		.then (exists) -> assert.strictEqual exists, false
 		.then () -> done()
 
 	it 'should correctly activate a registration', (done) ->
-		orm.registrations.add 'two', testRegistration
-		.then () -> orm.registrations.activate 'two', testUser.system, testUser.token
+		orm.registrations.add 'two', testUser.token
+		.then (code) ->
+			orm.registrations.activate 'two', code, testUser.system, testUser.token
 		.then () -> orm.users.get 'two'
 		.then (user) -> assert.deepEqual user, testUser
+		.then () -> orm.registrations.has 'two'
+		.then (exists) -> assert.strictEqual exists, false
 		.then () -> orm.users.rm 'two'
 		.then () -> done()
 
