@@ -11,7 +11,7 @@
 	"repository": "git://github.com/derhuerst/shout-orm.git",
 	"bugs": "https://github.com/derhuerst/shout-orm/issues",
 	"version": "0.1.0",
-	"main": "./index.coffee",
+	"main": "./src/index.coffee",
 	"keywords": [
 		"shout",
 		"orm",
