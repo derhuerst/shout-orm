@@ -1,11 +1,7 @@
 Promise =		require 'bluebird'
 redis =			require 'redis'
-
-groups =		require './groups'
-users =			require './users'
-registrations =	require './registrations'
-messages =		require './messages'
-subscribers =	require './subscribers'
+shortid =		require 'shortid'
+boom =			require 'boom'
 
 
 
@@ -15,36 +11,60 @@ module.exports =
 
 
 
-	port:		6379
-	host:		'localhost'
+	port:				6379
+	host:				'localhost'
+	redis:				null
 
-	redis:		null
+	p:
+		user:			'u'
+		group:			'g'
+		userInGroup:	'ug'
+		groupOfUser:	'gu'
+		message:		'm'
+		messageInGroup:	'mg'
+		registration:	'r'
+		token:			't'
+		system:			's'
+		body:			'b'
+		date:			'd'
 
-	_get:		null
-	_set:		null
-	_del:		null
-	_keys:		null
-	_exists:	null
-	_expire:	null
+	s:
+		apn:			0
+		gcm:			1
+		mpns:			2
 
 
 
 	connect: () ->
-		return this if @redis   # already connected
-
-		@redis = redis.createClient @port, @host
-
-		@_get = Promise.promisify @redis.get, @redis
-		@_set = Promise.promisify @redis.set, @redis
-		@_del = Promise.promisify @redis.del, @redis
-		@_keys = Promise.promisify @redis.keys, @redis
-		@_exists = Promise.promisify @redis.exists, @redis
-		@_expire = Promise.promisify @redis.expire, @redis
-
-		@groups = groups this
-		@users = users this
-		@registrations = registrations this
-		@messages = messages this
-		@subscribers = subscribers this
+		return this if @r   # already connected
+		@r = redis.createClient @port, @host
 
 		return this
+
+
+
+	addUser: (system, token) ->
+		id = shortid.generate()
+		set = {}
+		set[@p.system] = @s[system]
+		set[@p.token] = token
+		_ = this
+		return new Promise (resolve, reject) ->
+			_.r.hmset _.p.user + ':' + id, set, (err) ->
+				if err then reject err
+				else resolve id
+
+	deleteUser: (id) ->
+		_ = this
+		return new Promise (resolve, reject) ->
+			_.r.exists _.p.user + ':' + id, (err, exists) ->
+				if err then return reject err
+				if not exists then return reject boom.notFound "User `#{id}` doesn't exist."
+				_.r.smembers _.p.groupOfUser + ':' + id, (err, groups) ->
+					if err then return reject err
+					multi = _.r.multi()
+					for group in groups
+						multi.srem _.p.userInGroup + ':' + group, id
+					multi.exec (err) ->
+						if err then return reject err
+						resolve id
